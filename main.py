@@ -115,4 +115,5 @@ def behaviour_analysis(body: AnalysisRequest):
 def frontend() -> str:
     # The page gets the demo users' action history injected, so the data lives in one place.
     html = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
-    return html.replace("__USERS__", json.dumps(USERS))
+    # Escape "<" so the data can never close the <script> tag it is injected into.
+    return html.replace("__USERS__", json.dumps(USERS).replace("<", "\\u003c"))

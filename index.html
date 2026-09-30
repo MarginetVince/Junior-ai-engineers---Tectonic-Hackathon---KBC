@@ -261,15 +261,15 @@
     const ACTIONS = {
       APP_OPENED: {
         label: "App geopend", short: "Geopend", css: "open",
-        icon: '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>',
+        icon: "M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3",
       },
       APP_REFRESHED: {
         label: "Saldo vernieuwd", short: "Vernieuwd", css: "refresh",
-        icon: '<path d="M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5"/>',
+        icon: "M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5",
       },
       APP_CLOSED: {
         label: "App gesloten", short: "Gesloten", css: "close",
-        icon: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+        icon: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
       },
     };
     const WINDOW_SIZE = 5;
@@ -281,18 +281,35 @@
 
     const $ = (id) => document.getElementById(id);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    const svg = (paths) =>
-      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+
+    // Build DOM nodes instead of HTML strings, so text is never parsed as HTML (no XSS).
+    function el(tag, className, ...children) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      node.append(...children);
+      return node;
+    }
+
+    function svg(d) {
+      const NS = "http://www.w3.org/2000/svg";
+      const icon = document.createElementNS(NS, "svg");
+      const attrs = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2.2", "stroke-linecap": "round", "stroke-linejoin": "round" };
+      for (const [k, v] of Object.entries(attrs)) icon.setAttribute(k, v);
+      const path = document.createElementNS(NS, "path");
+      path.setAttribute("d", d);
+      icon.append(path);
+      return icon;
+    }
 
     // Summary chips: how often each action occurs in the window.
     function renderSummary(shown, changedKey) {
-      $("summary").innerHTML = Object.entries(ACTIONS)
-        .map(([key, a]) => {
+      $("summary").replaceChildren(
+        ...Object.entries(ACTIONS).map(([key, a]) => {
           const count = shown.filter((x) => x === key).length;
           const bump = key === changedKey ? " bump" : "";
-          return `<div class="chip ${a.css}${bump}"><b>${count}×</b>${a.short}</div>`;
+          return el("div", `chip ${a.css}${bump}`, el("b", "", `${count}×`), a.short);
         })
-        .join("");
+      );
     }
 
     // Add one action on top of the timeline (newest first).
@@ -300,13 +317,11 @@
       document.querySelectorAll("#actions .tag, #actions .empty").forEach((el) => el.remove());
       const li = document.createElement("li");
       li.className = "enter";
-      li.innerHTML = `
-        <div class="icon ${ACTIONS[key].css}">${svg(ACTIONS[key].icon)}</div>
-        <div class="action-text">
-          <div>${ACTIONS[key].label}</div>
-          <code>${key}</code>
-        </div>
-        <span class="tag">Nieuwste</span>`;
+      li.append(
+        el("div", `icon ${ACTIONS[key].css}`, svg(ACTIONS[key].icon)),
+        el("div", "action-text", el("div", "", ACTIONS[key].label), el("code", "", key)),
+        el("span", "tag", "Nieuwste")
+      );
       $("actions").prepend(li);
     }
 
@@ -320,7 +335,7 @@
 
     function setPlaying(on) {
       playing = on;
-      $("status").innerHTML = on ? '<span class="live"><i></i>Live</span>' : "laatste 5 acties";
+      $("status").replaceChildren(on ? el("span", "live", el("i"), "Live") : "laatste 5 acties");
       $("analyse").disabled = on;
       $("analyse").textContent = on ? "Activiteit binnenkomend…" : "Analyseer gedrag";
     }
@@ -329,7 +344,7 @@
     async function playActivity(actions) {
       const id = ++playId;
       const shown = [];
-      $("actions").innerHTML = '<li class="empty">Wachten op activiteit…</li>';
+      $("actions").replaceChildren(el("li", "empty", "Wachten op activiteit…"));
       renderSummary(shown, null);
       setPlaying(true);
 
@@ -346,7 +361,7 @@
         renderSummary(shown, key);
       }
 
-      if (!actions.length) $("actions").innerHTML = '<li class="empty">Nog geen activiteit</li>';
+      if (!actions.length) $("actions").replaceChildren(el("li", "empty", "Nog geen activiteit"));
       setPlaying(false);
     }
 
@@ -354,7 +369,7 @@
       currentUser = uuid;
       $("greeting").textContent = "Welkom, " + PROFILES[uuid].name;
       $("balance").textContent = PROFILES[uuid].balance;
-      $("result").innerHTML = "";
+      $("result").replaceChildren();
       playActivity(USERS[uuid]);
       document.querySelectorAll(".switcher button").forEach((b) =>
         b.classList.toggle("active", b.dataset.uuid === uuid)
@@ -374,19 +389,20 @@
         if (uuid !== currentUser) return; // user switched while waiting
 
         if (!res.ok) {
-          $("result").innerHTML = `<p class="error">${data.error.message}</p>`;
+          $("result").replaceChildren(el("p", "error", data.error.message));
         } else if (data.prediction === "USER_STRESSED") {
-          $("result").innerHTML = `
-            <div class="help">
-              <strong>Alles ok?</strong>
-              We zien dat je vaak je rekening checkt. Kunnen we je ergens mee helpen?
-              <div class="reason">${data.reason}</div>
-            </div>`;
+          $("result").replaceChildren(
+            el("div", "help",
+              el("strong", "", "Alles ok?"),
+              " We zien dat je vaak je rekening checkt. Kunnen we je ergens mee helpen?",
+              el("div", "reason", data.reason)
+            )
+          );
         } else {
-          $("result").innerHTML = `<p class="neutral">Alles in orde, geen actie nodig</p>`;
+          $("result").replaceChildren(el("p", "neutral", "Alles in orde, geen actie nodig"));
         }
       } catch (e) {
-        $("result").innerHTML = `<p class="error">Kan de server niet bereiken.</p>`;
+        $("result").replaceChildren(el("p", "error", "Kan de server niet bereiken."));
       } finally {
         $("analyse").disabled = playing;
         // Make sure the result is visible inside the phone screen.

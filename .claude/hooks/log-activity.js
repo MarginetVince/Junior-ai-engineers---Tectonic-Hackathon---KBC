@@ -7,7 +7,8 @@ process.stdin.on("data", (c) => (raw += c));
 process.stdin.on("end", () => {
   try {
     const e = JSON.parse(raw || "{}");
-    const root = process.env.CLAUDE_PROJECT_DIR || e.cwd || process.cwd();
+    // Fixed location relative to this script, never taken from input (prevents path traversal).
+    const root = path.resolve(__dirname, "..", "..");
     const logFile = path.join(root, ".claude", "logs", "ai-activity.md");
     const rel = (p) => (p ? path.relative(root, p).split(path.sep).join("/") : "?");
     const short = (s, n = 200) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, n);

@@ -2,6 +2,10 @@
 
 Door AI bijgehouden samenvatting van wijzigingen (nieuwste bovenaan).
 
+## 2026-09-30 – Security-bevindingen van Aikido opgelost
+- Wat: `index.html` – geen `innerHTML` meer, alles wordt opgebouwd met DOM-nodes/`textContent` (XSS via o.a. de foutmelding die de `user_uuid` terugstuurt); `main.py` – `<` escapen in de geïnjecteerde JSON; `.claude/hooks/log-activity.js` – logpad vast t.o.v. het script i.p.v. uit env/stdin (path traversal); `Dockerfile` – container draait als `appuser` i.p.v. root
+- Waarom: Aikido meldde XSS (high), file inclusion (high) en root-container (medium)
+
 ## 2026-09-30 – Live animatie van acties in de demo-app
 - Wat: `index.html` – bij het kiezen van een gebruiker verschijnen de acties één voor één (1 sec ertussen) met slide-in, icoon-pop, oplichtende rij, springende tellers en een "Live"-indicator; oudste actie fadet weg bij meer dan 5 (sliding window); analyseknop uitgeschakeld tijdens afspelen
 - Waarom: de demo moet aanvoelen alsof het gedrag live binnenkomt
